@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <style>
+            html, body
+            {
+                background-color: #222;
+                margin: 0px;
+                padding: 0px;
+                width: 100%;
+                height: 100%;
+            }
+
+            canvas
+            {
+                border: 1px solid grey;
+                border-radius: 8px;
+                box-shadow: 0px 0px 32px #111;
+                margin-top: -384px;
+                margin-left: -512px;
+                background-color: #000;
+            }
+
+            #container
+            {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+            }
+
+            #screen
+            {
+                position: absolute:
+                left: 0px;
+                top: 0px;
+                height: 100%;
+                box-shadow: inset 0px 0px 128px #111;
+            }
+
+            #hud
+            {
+                font-size: 24px;
+                color: white;
+                font-family: sans-serif;
+                padding: 6px;
+                text-align: right;
+            }
+        </style>
+
+        <script>
+            <!-- Yeah, this is a mess... #YOLO #SWAG -->
+
+            window.onload = function()
+            {
+                var particleCount = 1500;
+
+                var startSize = 16;
+                var endSize = 7;
+
+                var minSpeed = 125.0;
+                var maxSpeed = 175.0;
+
+                var gravity = 200.0;
+
+                var throwForce = 6;
+
+                var minLifetime = 2000;
+                var maxLifetime = 3000;
+
+                var updateRate = 17;
+
+                var timeVec = new vec2(updateRate / 1000, updateRate / 1000);
+
+                var ctx = document.getElementById("cnv").getContext("2d");
+
+                var particles = [];
+
+                var mouse_x = 0;
+                var mouse_y = 0;
+
+                var delta_x = 0;
+                var delta_y = 0;
+
+                var hud = document.getElementById("hud");
+                var lastUpdate = new Date();
+
+                var delta = 0;
+
+                var startColour = { r: 255, g: 130, b: 0 };
+                var endColour = { r: 255, g: 0, b: 255 };
+
+                document.getElementById("cnv").onmousemove = function(e)
+                {
+                    delta_x = e.layerX - mouse_x;
+                    delta_y = e.layerY - mouse_y;
+
+                    mouse_x = e.layerX;
+                    mouse_y = e.layerY;
+                }
+
+                setInterval(tick, updateRate);
+                setInterval(function()
+                {
+                    hud.innerHTML = '' + Math.floor(1000 / delta) + 'fps';
+                }, 500);
+
+                for (var i = 0; i < particleCount; i++)
+                {
+                    addParticle();
+                }
+
+                function addParticle()
+                {
+                    var p = new particle();
+
+                    initParticle(p);
+
+                    particles.push(p);
+                }
+
+                function initParticle(p)
+                {
+                    p.pos.x = mouse_x;
+                    p.pos.y = mouse_y;
+                    p.size.x = startSize;
+                    p.size.y = startSize;
+                    p.scale.x = 1;
+                    p.scale.y = 1;
+                    rot = Math.random() * Math.PI * 25;
+                    speed = minSpeed + ((maxSpeed - minSpeed) * Math.random());
+                    p.vel.x = Math.cos(rot) * speed + delta_x * throwForce;
+                    p.vel.y = Math.sin(rot) * speed + delta_y * throwForce;
+                    p.timeAlive = 0;
+                    p.lifetime = minLifetime + ((maxLifetime - minLifetime) * Math.random());
+
+                    p.startColour.r = startColour.r;
+                    p.startColour.g = startColour.g;
+                    p.startColour.b = startColour.b; 
+
+                    p.endColour.r = endColour.r;
+                    p.endColour.g = endColour.g;
+                    p.endColour.b = endColour.b;
+                }
+
+                function lerp(a, b, n)
+                {
+                    return a + ((b - a) * n);
+                }
+
+                function vec2()
+                {
+                    vec2(0, 0);
+                }
+
+                function vec2(x, y)
+                {
+                    this.x = x;
+                    this.y = y;
+                }
+
+                function colour()
+                {
+                    this.r = 0;
+                    this.g = 0;
+                    this.b = 0;
+                    this.a = 1;
+                }
+
+                function particle()
+                {
+                    this.vel = new vec2();
+                    this.pos = new vec2();
+                    this.size = new vec2();
+                    this.scale = new vec2();
+                    this.r = 0;
+                    this.g = 0;
+                    this.b = 0;
+                    this.a = 1;
+                    this.startColour = new colour();
+                    this.endColour = new colour();
+                    this.timeAlive = 0;
+                    this.lifetime = 0;
+                    this.lifePercent = 0;
+
+                    this.update = function()
+                    {
+                        this.timeAlive += updateRate;
+
+                        if (this.timeAlive < this.lifetime)
+                        {
+                            // <Mickey Mouse Physics> ...
+                            this.lifePercent = this.timeAlive / this.lifetime;
+
+                            this.scale.x = 1 - this.lifePercent;
+                            this.scale.y = 1 - this.lifePercent;
+                            this.r = lerp(this.startColour.r, this.endColour.r, this.lifePercent);
+                            this.g = lerp(this.startColour.g, this.endColour.g, this.lifePercent);
+                            this.b = lerp(this.startColour.b, this.endColour.b, this.lifePercent);
+                            this.a = 1 - this.lifePercent;
+                            this.colour = 'rgba(' + Math.floor(this.r) + ', ' + Math.floor(this.g) + ', ' + Math.floor(this.b) + ', 255)'; 
+                            this.vel.y += gravity * timeVec.y;
+                            this.pos.x += this.vel.x * timeVec.x;
+                            this.pos.y += this.vel.y * timeVec.y;
+
+                            if (this.pos.x >= 1024 || this.pos.x <= 0)
+                            {
+                                this.vel.x *= -1;
+                                this.vel.x *= 0.4;
+                            }
+
+                            if (this.pos.y >= 768 || this.pos.y <= 0)
+                            {
+                                this.vel.y *= -1;
+                                this.vel.y *= 0.4;
+                            }
+                        }
+                        else
+                        {
+                            initParticle(this);
+                        }
+                    }
+
+                    this.draw = function()
+                    {
+                        ctx.globalAlpha = this.a;
+                        ctx.fillStyle = this.colour;
+                        sizex = this.size.x * this.scale.x;
+                        sizey = this.size.y * this.scale.y;
+                        ctx.fillRect(this.pos.x - (sizex * 0.5), this.pos.y - (sizey * 0.5), sizex, sizey);
+                    }
+                }
+
+                function tick()
+                {
+                    var now = new Date();
+                    delta = now.getTime() - lastUpdate.getTime();
+                    lastUpdate = now;
+
+                    update();
+                    draw();
+                }
+
+                function update()
+                {
+                    for (var i = 0; i < particles.length; i++)
+                    {
+                        particles[i].update();
+                    }
+                }
+
+                function draw()
+                {
+                    ctx.globalAlpha = 0.5;
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(0, 0, 1024, 768);
+                    ctx.globalCompositeOperation = 'lighter';
+
+                    for (var i = 0; i < particles.length; i++)
+                    {
+                        particles[i].draw();
+                    }
+                }
+            }
+        </script>
+
+    </head>
+
+    <body>
+        <div id="screen">
+            <div id="hud"></div>
+            <div id="container">
+                <canvas width="1024" height="768" id="cnv" />
+            </div>
+        </div>
+    </body>
+</html>
